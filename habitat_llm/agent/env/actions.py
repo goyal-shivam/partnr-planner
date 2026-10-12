@@ -91,11 +91,19 @@ class HumanoidBaseVelAction(HumanoidJointAction):
         self._ang_speed = self._config.ang_speed
 
     def lazy_inst_humanoid_controller(self, task, config):
-        # Lazy instantiation of humanoid controller
-        # We assign the task with the humanoid controller, so that multiple actions can
-        # use it.
+        # Lazy instantiation of humanoid controller, one per humanoid agent index.
+        # We assign the task with the humanoid controllers dict, so that multiple
+        # actions belonging to the SAME agent can share its controller.
+        #
+        # NOTE: this used to be a single `task.humanoid_controller` attribute shared
+        # across ALL humanoid agents, which silently merged every humanoid's walk
+        # state into one controller bound to whichever agent instantiated it first
+        # (fine for exactly one human, broken for two or more: moving any humanoid
+        # agent moved all of them identically). Keyed by agent index instead.
+        if not hasattr(task, "humanoid_controllers"):
+            task.humanoid_controllers = {}
 
-        if not hasattr(task, "humanoid_controller") or task.humanoid_controller is None:
+        if task.humanoid_controllers.get(self._agent_index) is None:
             # Initialize humanoid controller
             agent_name = self._sim.habitat_config.agents_order[self._agent_index]
             walk_pose_path = self._sim.habitat_config.agents[
@@ -104,9 +112,9 @@ class HumanoidBaseVelAction(HumanoidJointAction):
 
             humanoid_controller = HumanoidRearrangeController(walk_pose_path)
 
-            task.humanoid_controller = humanoid_controller
+            task.humanoid_controllers[self._agent_index] = humanoid_controller
 
-        return task.humanoid_controller
+        return task.humanoid_controllers[self._agent_index]
 
     def reset_controller(self):
         if not self.initialized_pose:
