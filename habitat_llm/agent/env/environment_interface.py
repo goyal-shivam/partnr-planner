@@ -161,17 +161,15 @@ class EnvironmentInterface:
         # each agent has its own world-graph
         self.world_graph: Dict[int, Any] = {}
 
-        # create world-graphs for both agents
-        if self.partial_obs:
-            self.world_graph = {
-                self.robot_agent_uid: DynamicWorldGraph(),
-                self.human_agent_uid: DynamicWorldGraph(),
-            }
-        else:
-            self.world_graph = {
-                self.robot_agent_uid: WorldGraph(),
-                self.human_agent_uid: WorldGraph(),
-            }
+        # Create one world-graph per agent actually present in the sim. Historically
+        # hardcoded to exactly robot_agent_uid/human_agent_uid (i.e. exactly 2 agents);
+        # generalized here so additional agents (e.g. a second human) get their own
+        # world-graph too instead of raising a KeyError the first time a skill looks
+        # one up for them.
+        world_graph_cls = DynamicWorldGraph if self.partial_obs else WorldGraph
+        self.world_graph = {
+            agent_uid: world_graph_cls() for agent_uid in range(len(self.sim.agents_mgr))
+        }
 
         # set agent-asymmetry flag if True
         if self.conf.agent_asymmetry:
@@ -425,13 +423,14 @@ class EnvironmentInterface:
         if any(action is None for action in low_level_action_list):
             raise ValueError("low level actions cannot be None!")
 
-        # Construct final actions vector
+        # Construct final actions vector. Each agent's low-level action occupies a
+        # disjoint slice of one joint action vector, so summing generalizes to any
+        # number of agents (previously hardcoded to only 1 or 2).
         if len(low_level_action_list) == 0:
             raise Exception("Cannot step through environment without low level actions")
-        if len(low_level_action_list) == 1:
-            final_action_vector = low_level_action_list[0]
-        elif len(low_level_action_list) == 2:
-            final_action_vector = low_level_action_list[0] + low_level_action_list[1]
+        final_action_vector = low_level_action_list[0]
+        for action in low_level_action_list[1:]:
+            final_action_vector = final_action_vector + action
 
         return final_action_vector
 

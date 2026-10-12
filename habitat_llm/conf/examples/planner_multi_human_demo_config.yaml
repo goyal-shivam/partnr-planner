@@ -1,0 +1,61 @@
+# @package _global_
+#
+# Extends planner_multi_agent_demo_config (1 Spot robot = agent_0, 1 human = agent_1)
+# with a second human, agent_2, following the exact same wiring pattern used for
+# agent_1 there: simulator agent entry, low-level locomotion actions (oracle Nav/Pick/
+# Place/etc. drive these under the hood), an entry in evaluation.agents (which is all
+# register_actions() needs to add agent_2's oracle_pick/place/open/close/... Habitat
+# task actions), a tool/skill set via agents.agent_2.config, and agents_order.
+#
+# Used by scripts/multi_agent_server.py, not by habitat_llm's own CLI tools directly.
+
+defaults:
+  - planner_multi_agent_demo_config
+  - /habitat/simulator/sensor_setups@habitat.simulator.agents.agent_2: rgbd_head_agent
+  - /habitat/simulator/agents@habitat.simulator.agents.agent_2: human
+  - /habitat/task/actions@habitat.task.actions.agent_2_humanoid_base_velocity: humanoid_base_velocity
+  - /habitat/task/actions@habitat.task.actions.agent_2_humanoidjoint_action: humanoidjoint_action
+  - /agent/@agents.agent_2.config: oracle_rearrange_object_states_agent
+  # register_actions() (habitat_llm/agent/env/actions.py) reads conf.evaluation.agents
+  # specifically (a separate, somewhat redundant structure from the top-level `agents`
+  # above - see the "TODO: get rid of these uid" comment in planner_multi_agent_demo_config.yaml),
+  # so agent_2 needs to be added there too for its oracle_pick/place/open/close/... Habitat
+  # task actions to actually get registered.
+  - /agent/@evaluation.agents.agent_2.config: oracle_rearrange_object_states_agent
+  - _self_
+
+agents:
+  agent_2:
+    uid: 2
+
+evaluation:
+  agents:
+    agent_2:
+      uid: 2
+
+habitat:
+  gym:
+    # The inherited oracle_spot_kinematic_multi_agent obs_keys list names PARTNR-
+    # rearrangement-task-specific dynamic goal/start sensors (e.g.
+    # agent_0_dynamic_obj_goal_sensor) that RearrangeEmptyTask-v0 doesn't produce,
+    # which crashes the gym wrapper's reset(). multi_agent_server.py doesn't read
+    # observations at all (perception comes from WorldGraph), so this is trimmed to
+    # the bare minimum that's actually guaranteed present.
+    obs_keys:
+      - agent_0_is_holding
+      - agent_0_ee_pos
+      - agent_1_is_holding
+      - agent_1_ee_pos
+      - agent_2_is_holding
+      - agent_2_ee_pos
+  simulator:
+    agents_order:
+      - agent_0
+      - agent_1
+      - agent_2
+    agents:
+      agent_2:
+        radius: 0.3
+        articulated_agent_type: 'KinematicHumanoid'
+        articulated_agent_urdf: 'data/humanoids/humanoid_data/male_1/male_1.urdf'
+        motion_data_path: 'data/humanoids/humanoid_data/male_1/male_1_motion_data_smplx.pkl'
