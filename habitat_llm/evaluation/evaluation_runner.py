@@ -446,6 +446,24 @@ class EvaluationRunner:
         # check if name is too long, truncate to be system-friendly
         if len(self.episode_filename) > self.TRUNCATE_LENGTH:
             self.episode_filename = self.episode_filename[: self.TRUNCATE_LENGTH]
+        self._set_llm_call_context()
+
+    def _set_llm_call_context(self) -> None:
+        """Point every LLM backend that records calls at a per-episode JSONL file."""
+        planners = self.planner.items() if isinstance(self.planner, dict) else [(0, self.planner)]
+        ep = self.env_interface.env.env.env._env.current_episode
+        call_dir = os.path.join(self.output_dir, "llm_calls")
+        for uid, planner in planners:
+            llm = getattr(planner, "llm", None)
+            if llm is None or not hasattr(llm, "context"):
+                continue
+            os.makedirs(call_dir, exist_ok=True)
+            llm.context = {"episode_id": ep.episode_id, "agent_uid": uid, "run_name": self.episode_filename}
+            llm.call_count = 0
+            llm._prev_prompt = ""
+            llm.call_log_path = os.path.join(call_dir, f"{self.episode_filename}-agent{uid}.jsonl")
+            if os.path.exists(llm.call_log_path):
+                os.remove(llm.call_log_path)
 
     def get_low_level_actions(
         self, instruction: str, observations: dict, world_graph: Dict[int, WorldGraph]
@@ -719,5 +737,23 @@ class EvaluationRunner:
 
         # Merge dictionaries
         info |= planner_info
+
+        # TimedHome: persist the per-episode experiment record (see timedhome_record.py)
+        try:
+            from habitat_llm.evaluation.timedhome_record import build_record, write_record
+
+            write_record(
+                build_record(
+                    self.env_interface,
+                    info,
+                    planner_infos,
+                    t_runtime,
+                    self.current_instruction,
+                    self.episode_filename,
+                ),
+                self.output_dir,
+            )
+        except Exception as e:  # never let logging kill an episode
+            print(f"[timedhome_record] failed: {e!r}")
 
         return info
