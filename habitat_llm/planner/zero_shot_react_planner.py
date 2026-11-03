@@ -31,6 +31,12 @@ class ZeroShotReactPlanner(LLMPlanner):
         """
         super().__init__(plan_config, env_interface)
 
+    def _elapsed_task_seconds(self) -> float:
+        """Simulated seconds since the episode started (env steps / control frequency)."""
+        env = self.env_interface.env.env.env._env
+        sim_conf = self.env_interface.conf.habitat.simulator
+        return env._elapsed_steps / (float(sim_conf.ctrl_freq) / float(sim_conf.ac_freq_ratio))
+
     def build_response_grammar(self, world_graph: "WorldGraph") -> str:
         """
         Build a grammar that accepts all valid responses based on a world graph.
@@ -69,8 +75,11 @@ class ZeroShotReactPlanner(LLMPlanner):
                     include_room_name=True,
                     add_state_info=self.planner_config.objects_response_include_states,
                 )
+                result_text = responses[agent.uid]
+                if self.planner_config.get("clock", False):
+                    result_text += f"\nElapsed time: {self._elapsed_task_seconds():.0f} seconds"
                 result = response_format.format(
-                    result=responses[agent.uid],
+                    result=result_text,
                     objects=objects,
                     user_tag=self.planner_config.llm.user_tag,
                     eot_tag=self.planner_config.llm.eot_tag,

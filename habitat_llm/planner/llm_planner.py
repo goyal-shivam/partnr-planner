@@ -225,6 +225,13 @@ class LLMPlanner(Planner):
         :param world_graph: The world graph.
         :return: The prepared prompt and parameters.
         """
+        # TimedHome "clock" condition: tell the agent it is timed and that elapsed time is reported after every action
+        if self.planner_config.get("clock", False):
+            input_instruction = (
+                input_instruction
+                + " (Time note: this task is timed. After every action you are told how many seconds of task"
+                " time have elapsed. If the instruction states a time limit, finish before it.)"
+            )
         params = {
             "input": input_instruction,
             "tool_list": self.tool_list,
