@@ -10,10 +10,22 @@ from omegaconf import DictConfig, OmegaConf
 
 import habitat_llm
 from habitat_llm.llm.base_llm import BaseLLM
-from habitat_llm.llm.hf_model import HFModel  # noqa: F401
-from habitat_llm.llm.llama import Llama  # noqa: F401
-from habitat_llm.llm.multimodal_llama import MultiModalLlama  # noqa: F401
-from habitat_llm.llm.openai_chat import OpenAIChat  # noqa: F401
+from habitat_llm.llm.openai_compat import OpenAICompat  # noqa: F401
+
+# Backends with heavy or optional dependencies (transformers_cfg, rlm, azure openai) are
+# imported lazily so that the OpenAI-compatible (vLLM) backend works without them.
+for _mod, _cls in [
+    ("hf_model", "HFModel"),
+    ("llama", "Llama"),
+    ("multimodal_llama", "MultiModalLlama"),
+    ("openai_chat", "OpenAIChat"),
+]:
+    try:
+        globals()[_cls] = getattr(
+            __import__(f"habitat_llm.llm.{_mod}", fromlist=[_cls]), _cls
+        )
+    except Exception:  # noqa: B902
+        pass
 
 
 def instantiate_llm(

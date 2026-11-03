@@ -1,0 +1,35 @@
+llm:
+  _target_    : habitat_llm.llm.OpenAICompat
+  _partial_   : True
+
+verbose       : False
+system_message: 'You are an expert at task planning.'
+
+# Chat endpoint: the whole accumulated PARTNR prompt goes in one user message, exactly as with OpenAIChat,
+# so the prompt tags stay empty.
+system_tag : ""
+user_tag : ""
+assistant_tag : ""
+eot_tag : ""
+keep_message_history : False
+
+base_url      : "http://127.0.0.1:8301/v1"
+api_key       : "EMPTY"
+request_timeout : 900
+retries       : 3
+# Extra request fields, e.g. {chat_template_kwargs: {enable_thinking: false}} for Qwen3.x
+extra_body    : {}
+# Qwen3.x-style models: false disables thinking, true enables it, null leaves the server default
+enable_thinking : null
+# gpt-oss only ("low" | "medium" | "high"); null otherwise
+reasoning_effort : null
+# JSONL file that receives one record per LLM call (raw response, tokens, latency, ...)
+call_log_path : null
+
+generation_params:
+  model        : Qwen/Qwen3.8-27B-FP8
+  max_tokens   : 250
+  temperature  : 0
+  top_p        : 1
+  stream       : False
+  stop         : "Assigned!"
