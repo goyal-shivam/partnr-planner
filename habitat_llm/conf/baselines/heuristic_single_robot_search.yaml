@@ -1,0 +1,10 @@
+# @package _global_
+
+# Searcher expert (t_PO): partial observability, so the robot needs Explore (absent from the multi-agent runner's agent_0)
+defaults:
+  - /examples/centralized_full_obs
+  - override /planner@evaluation.planner: single_robot_search_expert_planner
+  - override /agent@evaluation.agents.agent_0.config: oracle_rearrange_agent
+
+world_model:
+  partial_obs: True

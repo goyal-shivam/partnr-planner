@@ -1,0 +1,8 @@
+# The tag below must match file name!
+say_tool:
+  _target_   : habitat_llm.tools.perception.SayTool
+  _recursive_: False
+  skill_config:
+    description: 'Used to tell the person who gave you the task something, for example a problem or an update.
+    It takes no time. Example (Say[The cup was not in the kitchen, so I am checking the bedroom])'
+    name: Say
